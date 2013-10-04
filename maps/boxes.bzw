@@ -1,0 +1,71 @@
+#Saved by 470MapEditor
+#Which was made by Spencer James Clark
+
+box
+position 0 0 0
+rotation 0
+size 120 120 20
+end
+
+box
+position -90 300 0
+rotation 0
+size 20 20 20
+end
+
+box
+position 90 300 0
+rotation 0
+size 20 20 20
+end
+
+box
+position 300 -90 0
+rotation 0
+size 20 20 20
+end
+
+box
+position 300 90 0
+rotation 0
+size 20 20 20
+end
+
+box
+position -90 -300 0
+rotation 0
+size 20 20 20
+end
+
+box
+position 90 -300 0
+rotation 0
+size 20 20 20
+end
+
+box
+position -300 -90 0
+rotation 0
+size 20 20 20
+end
+
+box
+position -300 90 0
+rotation 0
+size 20 20 20
+end
+
+base
+position 0 380 0
+rotation 0
+size 20 20 0
+color 1
+end
+
+base
+position 0 -380 0
+rotation 0
+size 20 20 0
+color 2
+end
+

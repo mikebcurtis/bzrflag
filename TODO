@@ -1,0 +1,27 @@
+H M test more agents
+L M trash talk
+H S legal matter
+
+goodrich:
+    L S images happy
+
+
+TEST TEST TEST
+
+Done
+----
+
+H B debug square, telnet interactive
+L S die friendly
+*H S point-to-polygon
+M S win resize
+*H M resized obstacle draw wrong
+M S update score
+M S --default-noise option
+*H M goodrich
+    H M puppy guard
+    M M make a bot
+    *disable bad commands
+    *create good commands
+    *freezing [collision]
+    *occ grid

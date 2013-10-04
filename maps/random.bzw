@@ -1,0 +1,254 @@
+base
+position 362 -352 0
+rotation 0
+size 20 20 0
+color 2
+end
+
+base
+position -369 358 0
+rotation 0
+size 20 20 0
+color 3
+end
+
+box
+position 286 -132 0
+rotation 0
+size 22 29 20
+end
+
+box
+position 307 292 0
+rotation 0
+size 25 41 20
+end
+
+box
+position -230 337 0
+rotation 0
+size 23 30 20
+end
+
+box
+position 295 143 0
+rotation 0
+size 17 73 20
+end
+
+box
+position -338 -10 0
+rotation 0
+size 19 67 20
+end
+
+box
+position -169 216 0
+rotation 0
+size 30 59 20
+end
+
+box
+position -322 148 0
+rotation 0
+size 36 53 20
+end
+
+box
+position -79 -192 0
+rotation 0
+size 32 42 20
+end
+
+box
+position -29 352 0
+rotation 0
+size 25 33 20
+end
+
+box
+position -204 -364 0
+rotation 0
+size 13 36 20
+end
+
+box
+position 232 236 0
+rotation 0
+size 23 47 20
+end
+
+box
+position 222 -318 0
+rotation 0
+size 19 71 20
+end
+
+box
+position -70 162 0
+rotation 0
+size 22 52 20
+end
+
+box
+position -236 -110 0
+rotation 0
+size 30 33 20
+end
+
+box
+position 108 -63 0
+rotation 0
+size 10 68 20
+end
+
+box
+position 119 330 0
+rotation 0
+size 33 37 20
+end
+
+box
+position -343 -169 0
+rotation 0
+size 24 44 20
+end
+
+box
+position -261 -339 0
+rotation 0
+size 16 32 20
+end
+
+box
+position 32 -324 0
+rotation 0
+size 28 62 20
+end
+
+box
+position -264 15 0
+rotation 0
+size 13 43 20
+end
+
+box
+position 180 -117 0
+rotation 0
+size 17 28 20
+end
+
+box
+position -174 334 0
+rotation 0
+size 30 33 20
+end
+
+box
+position 8 -117 0
+rotation 0
+size 13 28 20
+end
+
+box
+position 79 216 0
+rotation 0
+size 19 34 20
+end
+
+box
+position 128 -247 0
+rotation 0
+size 15 31 20
+end
+
+box
+position 177 293 0
+rotation 0
+size 11 40 20
+end
+
+box
+position 353 -43 0
+rotation 0
+size 14 67 20
+end
+
+box
+position -317 -260 0
+rotation 0
+size 27 46 20
+end
+
+box
+position -118 -333 0
+rotation 0
+size 36 42 20
+end
+
+box
+position -60 -35 0
+rotation 0
+size 12 60 20
+end
+
+box
+position 375 -218 0
+rotation 0
+size 17 61 20
+end
+
+box
+position -75 333 0
+rotation 0
+size 14 38 20
+end
+
+box
+position 348 160 0
+rotation 0
+size 12 65 20
+end
+
+box
+position -299 328 0
+rotation 0
+size 14 64 20
+end
+
+box
+position 232 -14 0
+rotation 0
+size 19 40 20
+end
+
+box
+position 165 54 0
+rotation 0
+size 13 67 20
+end
+
+box
+position 42 71 0
+rotation 0
+size 29 62 20
+end
+
+box
+position 27 343 0
+rotation 0
+size 10 54 20
+end
+
+box
+position -174 -200 0
+rotation 0
+size 16 33 20
+end
+
+box
+position -162 22 0
+rotation 0
+size 25 67 20
+end
+
