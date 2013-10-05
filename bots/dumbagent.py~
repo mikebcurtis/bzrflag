@@ -29,9 +29,9 @@ class Agent(object):
         self.bzrc = bzrc
         self.constants = self.bzrc.get_constants()
         self.commands = []
-        self.elapsed_time = 0
         self.time_since_last_shot = 0
-
+        self.turn_start = 0
+            
     def tick(self, time_diff):
         '''Some time has passed; decide what to do next'''
         # Get information from the BZRC server
@@ -46,39 +46,25 @@ class Agent(object):
         # Reset my set of commands (we don't want to run old commands)
         self.commands = []
 
-        self.elapsed_time += time_diff
-        self.time_since_last_shot += time_diff
-
-        #print('elapsed time: ' + str(self.elapsed_time)) # DEBUG
-        #print('time since last shot: ' + str(self.time_since_last_shot))
-
-        # Decide what to do with each of my tanks
-        for bot in mytanks:
-            if bot.index == 0:
-                print('bot.reload_time ' + str(bot.time_to_reload)) # DEBUG
-            self.move(bot, time_diff)
-
-        if self.time_since_last_shot > 2000:
-            self.time_since_last_shot = 0
-            print('shooting at ' + str(self.elapsed_time))
+        if time_diff - self.time_since_last_shot > 2:
+            self.time_since_last_shot = time_diff
+            print('shooting at ' + str(time_diff))
             for bot in mytanks:
                 self.commands.append(Command(bot.index,1,bot.angvel,True))
-
+        
+        # when to stop turning
+        if time_diff - self.turn_start > 1:
+            for bot in mytanks:
+                self.commands.append(Command(bot.index,1,0,False))
+                
+        # when to start turning
+        if (time_diff - (self.turn_start + 1)) > 4:
+            self.turn_start = time_diff
+            for bot in mytanks:
+                self.commands.append(Command(bot.index,1,0.66,False))
+        
         # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
-
-    def move(self, bot, time_diff):
-        # at first, just start moving forward        
-        if self.elapsed_time == 0:
-            self.commands.append(Command(bot.index,1,0,False))
-            if bot.index == 0:
-                print('commands for bot ' + str(bot.index) + ' speed: 1 angvel: 0 shoot: False') # DEBUG
-        
-        #if self.elapsed_time % 2000 < 200:
-        #    self.commands.append(Command(bot.index,1,0,True))
-        #    if bot.index == 0:
-        #        print('commands for bot ' + str(bot.index) + ' speed: 1 angvel: 0 shoot: True') # DEBUG
-
 
 def main():
     # Process CLI arguments.
