@@ -1,0 +1,8 @@
+In bzrflag location:
+- ./simple.sh
+
+To run a bot:
+python betterAgent.py 192.168.1.217 32803
+
+
+

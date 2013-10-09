@@ -59,7 +59,6 @@ class Agent(object):
         # when to start turning
         if (time_diff - (self.turn_start + 1)) > 4:
             self.turn_start = time_diff
-            print('turn start at: ' + str(time_diff))
             for bot in mytanks:
                 self.commands.append(Command(bot.index,1,0.66,False))
         
