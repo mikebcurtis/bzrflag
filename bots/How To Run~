@@ -13,3 +13,6 @@ To push changes to github:
         git remote set-url origin http://www.github.com/mikebcurtis/bzrflag.git
     from then on out you can just use:
         git push
+
+
+

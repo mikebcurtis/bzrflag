@@ -104,9 +104,7 @@ class Agent(object):
         target_angle = math.atan2(target_y - bot.y,
                 target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
-        angle = 2 * relative_angle
-        angle = self.avoid_obstacles(bot,angle)
-        command = Command(bot.index, 1, angle, False)
+        command = Command(bot.index, 1, 2 * relative_angle, False)
         self.commands.append(command)
 
     def normalize_angle(self, angle):
@@ -118,24 +116,6 @@ class Agent(object):
             angle -= 2 * math.pi
         return angle
 
-    def avoid_obstacles(self, bot, target_x, target_y):
-        '''Returns the modified angle the tank should use to avoid obstacles, calculated as the sum of the effects of a repulsive and tangential field eminating from every obstacle on the given angle.'''
-        repulsion_scalar = 5
-        
-        # avoid enemies
-        enemy_influence_radius = 5 # do not consider enemies outside the radius
-        for enemy in self.enemies:
-            dist = math.sqrt((enemy.x - bot.x)**2 + (enemy.y - bot.y)**2)
-            if dist < enemy_influence_radius:
-                enemy_angle = math.atan2(enemy.y - bot.y, enemy.x - bot.x)
-                angle += -1 * repulsion_scalar * (enemy_influence_radius - distance) * math.cos(enemy_angle)
-            
-        # avoid rocks
-        #obstacle_influence_radius = 20 # do not consider obstacles outside the radius
-        #for obstacle in obstacles:
-            
-        return angle
-            
 
 def main():
     # Process CLI arguments.
