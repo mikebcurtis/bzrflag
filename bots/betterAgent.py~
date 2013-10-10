@@ -103,7 +103,11 @@ class Agent(object):
     def move_to_position(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y - bot.y,
                 target_x - bot.x)
-        relative_angle = self.normalize_angle(target_angle - bot.angle)
+        if target_angle < 0:
+            target_angle += 2 * math.pi
+        #relative_angle = self.normalize_angle(target_angle - bot.angle)
+        relative_angle = self.avoid_obstacles(bot, target_angle - bot.angle)
+        #angle = self.avoid_obstacles(bot,angle)
         command = Command(bot.index, 1, 2 * relative_angle, False)
         self.commands.append(command)
 
@@ -116,6 +120,30 @@ class Agent(object):
             angle -= 2 * math.pi
         return angle
 
+    # goal_angle is the angle we need to rotate the tank to point towards the goal
+    def avoid_obstacles(self, bot, goal_angle):
+        '''Returns the angle the tank should use to avoid obstacles, calculated as the sum of the effects of a repulsive and tangential field eminating from every obstacle on the given angle.'''
+        sum_angles = goal_angle
+        
+        # avoid enemies
+        enemy_influence_radius = 100 # do not consider enemies outside the radius
+        for enemy in self.enemies:
+            dist = math.sqrt((enemy.x - bot.x)**2 + (enemy.y - bot.y)**2)
+            if dist < enemy_influence_radius:
+                enemy_angle = math.atan2(enemy.y - bot.y, enemy.x - bot.x)
+                if enemy_angle < 0:
+                    enemy_angle += 2 * math.pi
+                sum_angles += enemy_angle + math.pi # oppositeangle
+                
+            
+        # avoid rocks
+        #obstacle_influence_radius = 20 # do not consider obstacles outside the radius
+        #for obstacle in obstacles:
+        #if sum_angles == goal_angle:
+        #    return normalize_angle(goal_angle)
+        
+        #return normalize_angle(sum_angles / self.enemies.len + 1)
+        return self.normalize_angle(sum_angles)    
 
 def main():
     # Process CLI arguments.
