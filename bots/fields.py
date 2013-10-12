@@ -128,7 +128,8 @@ class PFieldPlotter(BZRC):
         tank2.y = 50
         self.enemies.append(tank2)
         
-        return self.enemies
+        #return self.enemies
+        return [] # TODO change this, just debugging obstacles
         
     def get_flags(self):
         '''This will place a goal that should show attractive potential fields.'''
@@ -144,7 +145,7 @@ class PFieldPlotter(BZRC):
         return flags  
         
     def get_obstacles(self):
-        self.obstacles = [((0, 0), (-150, 0), (-150, -50), (0, -50)), ((200, 100), (200, 330), (300, 330), (300, 100))]
+        self.obstacles = [((0, 0), (-200, 0), (-200,-50), (0,-50), (0, -250), (50, -250), (50, -50), (250, -50), (250, 0), (50, 0), (50, 200), (0, 200)), ((150,150),(350,350),(300,222))]
         return self.obstacles
             
     ########################################################################

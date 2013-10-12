@@ -44,19 +44,22 @@ class Agent(object):
 
         # avoid enemies within this radius
         self.enemy_influence_radius = 30
-        self.obstacle_influence_radius = 120
+        self.obstacle_influence_radius = 150
+        self.obstacle_influence_distance = 60
         
         # Constants        
         self.attractive_constant = 5
 
-        self.enemy_repulsive_constant = 2
+        self.enemy_repulsive_constant = 10
         self.enemy_tangential_constant = 0
 
-        self.obstacle_repulsive_constant = 50
+        self.obstacle_repulsive_constant = 80
         self.obstacle_tangential_constant = 10
 
         self.obstacles = []
-        self.create_obstacles(self.bzrc.get_obstacles())
+        #self.create_obstacles(self.bzrc.get_obstacles()) # Trevor's original code
+        self.obstacles = self.bzrc.get_obstacles()
+        print(str(self.obstacles))# TODO remove DEBUG
 
         # set initial positions of all of the tanks on our team
 	for tank in self.mytanks:
@@ -107,8 +110,11 @@ class Agent(object):
         eRX, eRY = self.get_enemy_fields(bot, True)
         eTX, eTY = self.get_enemy_fields(bot, False)   
 
-        oRX, oRY = self.get_obstacle_fields(bot, True)
-        oTX, oTY = self.get_obstacle_fields(bot, False)
+        oRX, oRY = self.get_obstacle_fields(bot)
+        oTX = 0
+        oTY = 0
+        #oRX, oRY = self.get_obstacle_fields(bot, True)
+        #oTX, oTY = self.get_obstacle_fields(bot, False)
  
         #print("X: " + str(x) + " Y: " + str(y))
         #print("eRX: " + str(eRX) + " eRY: " + str(eRY))    
@@ -156,20 +162,76 @@ class Agent(object):
             dx_dy = (x + dx), (y + dy) 
         return dx_dy
 
-    def get_obstacle_fields(self, bot, repulsive):
-        dx_dy = 0, 0
-
+    def get_obstacle_fields(self, bot):
+        dx = 0
+        dy = 0
+        
         for obstacle in self.obstacles:
-            center_x, center_y = obstacle
-            x = 0
-            y = 0
-            if(repulsive):
-                x, y = self.get_repulsive_field(bot, center_x, center_y, self.obstacle_influence_radius, self.obstacle_repulsive_constant)
-            else:
-                x, y = self.get_tangential_field(bot, center_x, center_y, self.obstacle_influence_radius, self.obstacle_tangential_constant)
-            dx, dy = dx_dy
-            dx_dy = (x + dx), (y + dy)
-        return dx_dy
+            for x in range(1,len(obstacle) + 1):
+                idx1 = x - 1
+                idx2 = x
+                if x == len(obstacle):
+                    idx2 = 0
+                #print("idx1 = " + str(idx1)) # TODO remove DEBUG
+                #print("idx2 = " + str(idx2)) # TODO remove DEBUG
+                p1 = obstacle[idx1]
+                p2 = obstacle[idx2]
+                
+                if p1[0] >= p2[0]:
+                    near_pt_x, near_pt_y = self.get_nearest_point_on_line(p1[0],p1[1],p2[0],p2[1],bot)
+                elif p1[0] < p2[0]:
+                    near_pt_x, near_pt_y = self.get_nearest_point_on_line(p2[0],p2[1],p1[0],p1[1],bot)
+                distance_to_line = math.sqrt((near_pt_x - bot.x)**2 + (near_pt_y - bot.y)**2)
+                if distance_to_line <= self.obstacle_influence_distance:
+                    print("bot at (" + str(bot.x) + ", " + str(bot.y) + ") is " + str(distance_to_line) + " from the line (" + str(p1) + ", " + str(p2) + ") at the point (" + str(near_pt_x) + ", " + str(near_pt_y) + ")") # TODO remove DEBUG
+                    angle = math.atan2(near_pt_y - bot.y, near_pt_x - bot.x)
+                    dx += -1 * self.obstacle_repulsive_constant * (self.obstacle_influence_distance - distance_to_line) * math.cos(angle)
+                    dy += -1 * self.obstacle_repulsive_constant * (self.obstacle_influence_distance - distance_to_line) * math.sin(angle)
+                #else:
+                    #print("too far from line")
+        return dx, dy
+                
+
+    def get_nearest_point_on_line(self, p1_x, p1_y, p2_x, p2_y, bot):
+        '''Get the nearest point on the line formed by p1 and p2 to the bot.'''
+        # math taken from Building Interactive Systems by Dr. Olsen, pg 251
+        # L = A + t(B - A)
+        # t = -(A.x - M.x)(B.x - A.x) - (A.y - M.y)(B.y - A.y) / (B.x - A.x)**2 + (B.y - A.y)**2
+        t = ((-1 * (p1_x - bot.x) * (p2_x - p1_x)) - ((p1_y - bot.y) * (p2_y - p1_y))) / ((p2_x - p1_x)**2 + (p2_y - p1_y)**2)
+        
+        # build the nearest point on the line to the tank, A + t(B - A)
+        near_pt_x = p1_x + (t * (p2_x - p1_x))
+        near_pt_y = p1_y + (t * (p2_y - p1_y))
+        
+        #print('bot at ' + str((bot.x, bot.y)) + ' is nearest to line ' + str((p1_x, p1_y)) + " to " + str((p2_x, p2_y)) + " at " + str(near_pt)) # TODO remove DEBUG
+        
+        # make sure no only consider the line between the two given line segments
+        if near_pt_x > max([p1_x, p2_x]):
+            near_pt_x = max([p1_x, p2_x])
+        elif near_pt_x < min([p1_x, p2_x]):
+            near_pt_x = min([p1_x, p2_x])
+            
+        if near_pt_y > max([p1_y, p2_y]):
+            near_pt_y = max([p1_y, p2_y])
+        elif near_pt_y < min([p1_y, p2_y]):
+            near_pt_y = min([p1_y, p2_y])
+            
+        return (near_pt_x, near_pt_y)
+
+    #def get_obstacle_fields(self, bot, repulsive):
+    #    dx_dy = 0, 0
+    #
+    #    for obstacle in self.obstacles:
+    #        center_x, center_y = obstacle
+    #        x = 0
+    #        y = 0
+    #        if(repulsive):
+    #            x, y = self.get_repulsive_field(bot, center_x, center_y, self.obstacle_influence_radius, self.obstacle_repulsive_constant)
+    #        else:
+    #            x, y = self.get_tangential_field(bot, center_x, center_y, self.obstacle_influence_radius, self.obstacle_tangential_constant)
+    #        dx, dy = dx_dy
+    #        dx_dy = (x + dx), (y + dy)
+    #    return dx_dy
 
     def get_repulsive_field(self, bot, x, y, radius, constant):
         dist = math.sqrt((x - bot.x)**2 + (y - bot.y)**2)
