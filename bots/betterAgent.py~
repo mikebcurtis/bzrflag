@@ -1,7 +1,7 @@
 #!/usr/bin/python -tt
 
 from bzrc import BZRC, Command, Answer
-import sys, math, time
+import sys, math, time, random
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -29,6 +29,12 @@ class Agent(object):
         self.bzrc = bzrc
         self.constants = self.bzrc.get_constants()
         self.commands = []
+
+        self.update()
+        self.past_position = {}
+        self.goals = {}
+
+        # Determine the position of the center of our base (Where to return the flag)
         bases = self.bzrc.get_bases()
         for base in bases:
             if base.color == self.constants['team']:
@@ -36,8 +42,28 @@ class Agent(object):
                 self.base.x = (base.corner1_x+base.corner3_x)/2
                 self.base.y = (base.corner1_y+base.corner3_y)/2
 
-    def tick(self, time_diff):
-        '''Some time has passed; decide what to do next'''
+        # avoid enemies within this radius
+        self.enemy_influence_radius = 30
+        self.obstacle_influence_radius = 120
+        
+        # Constants        
+        self.attractive_constant = 5
+
+        self.enemy_repulsive_constant = 2
+        self.enemy_tangential_constant = 0
+
+        self.obstacle_repulsive_constant = 50
+        self.obstacle_tangential_constant = 10
+
+        self.obstacles = []
+        self.create_obstacles(self.bzrc.get_obstacles())
+
+        # set initial positions of all of the tanks on our team
+	for tank in self.mytanks:
+            self.past_position[tank.index] = tank.x, tank.y
+            self.goals[tank.index] = None
+
+    def update(self):
         # Get information from the BZRC server
         mytanks, othertanks, flags, shots = self.bzrc.get_lots_o_stuff()
         self.mytanks = mytanks
@@ -46,37 +72,146 @@ class Agent(object):
         self.shots = shots
         self.enemies = [tank for tank in othertanks if tank.color != self.constants['team']]
 
-        # Reset my set of commands (we don't want to run old commands)
+    # find the flag closest to each tank and set that as their goal
+    def set_flag_goals(self):
+        for tank in self.mytanks:
+            best = [0,None]
+            flag = self.closest_flag(tank)
+            if flag:
+                self.goals[tank.index] = flag.x, flag.y     
+        
+
+    '''Some time has passed; decide what to do next'''
+    def tick(self, time_diff):
+        self.update()
         self.commands = []
 
         # Decide what to do with each of my tanks
-        for bot in mytanks:
-            if bot.flag == '-':
-                self.run_to_flag(bot)
-            else:
-                self.return_to_base(bot)
+        for bot in self.mytanks:
+            #if(bot.index == 0): # Uncomment this for testing
+                dx, dy = self.update_goal(bot)
+                self.move_to_position(bot, dx, dy)     
+                self.past_position[bot.index] = bot.x, bot.y
 
-        # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
 
-    def run_to_flag(self, bot):
-        best_flag = None
-        best_dist = 2 * float(self.constants['worldsize'])
+    def update_goal(self, bot):
+        dx = 0
+        dy = 0        
+        # ==== STUCK -> MOVE SOME RANDOM DIRECTION (TO GET UNSTUCK) ====
+        #if (bot.x, bot.y) == self.past_position[bot.index]:
+        #    dx, dy = self.random_pos() 
+        #else:
+        x, y = self.get_attractive_fields(bot)
 
+        eRX, eRY = self.get_enemy_fields(bot, True)
+        eTX, eTY = self.get_enemy_fields(bot, False)   
+
+        oRX, oRY = self.get_obstacle_fields(bot, True)
+        oTX, oTY = self.get_obstacle_fields(bot, False)
+ 
+        #print("X: " + str(x) + " Y: " + str(y))
+        #print("eRX: " + str(eRX) + " eRY: " + str(eRY))    
+        #print("eTX: " + str(eTX) + " eTY: " + str(eTY))  
+        #print("oRX: " + str(oRX) + " oRY: " + str(oRY))      
+        #print("oTX: " + str(oTX) + " oTY: " + str(oTY))  
+        
+        dx = x + eRX + eTX + oRX + oTX
+        dy = y + eRY + eTX + oRY + oTY
+
+        #print("dx: " + str(dx) + " dy: " + str(dy))          
+
+        return dx, dy
+
+    def get_attractive_fields(self, bot):
+        dx_dy = 0, 0
+
+        # ==== ENEMY FLAG -> BACK TO BASE ====
+        if bot.flag != '-':
+            dx_dy = (self.base.x - bot.x), (self.base.y - bot.y)
+        else:
+            # ==== NO FLAG -> GO GET AN ENEMY FLAG ====
+            flag = self.closest_flag(bot)
+            if flag:
+                dx_dy = (flag.x - bot.x), (flag.y - bot.y)
+            # ==== ALL FLAGS ARE TAKEN -> HEAD SOME RANDOM DIRECTION ====
+            else:
+                x, y = self.random_pos()
+                dx_dy = (x - bot.x), (y - bot.y)
+        x, y = dx_dy
+        dx_dy = (self.attractive_constant * x), (self.attractive_constant * y)
+        return dx_dy     
+
+    def get_enemy_fields(self, bot, repulsive):
+        dx_dy = 0, 0
+        
+        for enemy in self.enemies:      
+            x = 0
+            y = 0
+            if(repulsive):
+                x, y = self.get_repulsive_field(bot, enemy.x, enemy.y, self.enemy_influence_radius, self.enemy_repulsive_constant)
+            else:
+                x, y = self.get_tangential_field(bot, enemy.x, enemy.y, self.enemy_influence_radius, self.enemy_tangential_constant)
+            dx, dy = dx_dy
+            dx_dy = (x + dx), (y + dy) 
+        return dx_dy
+
+    def get_obstacle_fields(self, bot, repulsive):
+        dx_dy = 0, 0
+
+        for obstacle in self.obstacles:
+            center_x, center_y = obstacle
+            x = 0
+            y = 0
+            if(repulsive):
+                x, y = self.get_repulsive_field(bot, center_x, center_y, self.obstacle_influence_radius, self.obstacle_repulsive_constant)
+            else:
+                x, y = self.get_tangential_field(bot, center_x, center_y, self.obstacle_influence_radius, self.obstacle_tangential_constant)
+            dx, dy = dx_dy
+            dx_dy = (x + dx), (y + dy)
+        return dx_dy
+
+    def get_repulsive_field(self, bot, x, y, radius, constant):
+        dist = math.sqrt((x - bot.x)**2 + (y - bot.y)**2)
+        angle = math.atan2(y - bot.y, x - bot.x)
+        if dist < radius:
+            # TODO - Decide which way to rotate depending on what part of the object you are headed towards?
+            dx = -1 * ((self.obstacle_influence_radius - dist) * math.cos(angle))
+            dy = -1 * ((self.obstacle_influence_radius - dist) * math.sin(angle))
+            return (constant * dx), (constant * dy)
+        return 0, 0
+        
+    def get_tangential_field(self, bot, x, y, radius, constant):
+        dist = math.sqrt((x - bot.x)**2 + (y - bot.y)**2)
+        angle = math.atan2(y - bot.y, x - bot.x)
+        if dist < radius:
+            # TODO - decide which way to turn?
+            dx = ((self.enemy_influence_radius - dist) * math.cos(90 + angle))
+            dy = ((self.enemy_influence_radius - dist) * math.sin(90 + angle)) 
+            return (constant * dx), (constant * dy)     
+        return 0, 0            
+      
+    def closest_flag(self, bot):
+        best = None
         for flag in self.flags:
-            # if one of our teammates has the flag, don't swarm them            
-            if flag.poss_color == self.constants['team'] or flag.color == self.constants['team']:
+            if flag.color == self.constants['team']:
+                continue
+            if flag.poss_color != 'none':
+                continue
+            # TODO temporary
+            if flag.color != 'blue':
                 continue
             dist = math.sqrt((flag.x - bot.x)**2 + (flag.y - bot.y)**2)
-            if dist < best_dist:
-                best_dist = dist
-                best_flag = flag
-
-            if best_flag is None:
-                command = Command(bot.index, 0, 0, False)
-                self.commands.append(command)
-            else:
-                self.move_to_position(bot, best_flag.x, best_flag.y)            
+            if not best or dist < best[0]:
+                best = [dist, flag]
+        if best:
+            return best[1]  
+    
+    def random_pos(self):
+        width = int(self.constants['worldsize'])
+        x = random.randrange(width) - width/2
+        y = random.randrange(width) - width/2
+        return x,y          
 
     def return_to_base(self, bot):
         self.move_to_position(bot, self.base.x, self.base.y)
@@ -101,14 +236,9 @@ class Agent(object):
             self.move_to_position(bot, best_enemy.x, best_enemy.y)
 
     def move_to_position(self, bot, target_x, target_y):
-        target_angle = math.atan2(target_y - bot.y,
-                target_x - bot.x)
-        if target_angle < 0:
-            target_angle += 2 * math.pi
-        #relative_angle = self.normalize_angle(target_angle - bot.angle)
-        relative_angle = self.avoid_obstacles(bot, target_angle - bot.angle)
-        #angle = self.avoid_obstacles(bot,angle)
-        command = Command(bot.index, 1, 2 * relative_angle, False)
+        target_angle = math.atan2(target_y, target_x)
+        relative_angle = self.normalize_angle(target_angle - bot.angle)
+        command = Command(bot.index, .5, 2 * relative_angle, False)
         self.commands.append(command)
 
     def normalize_angle(self, angle):
@@ -118,32 +248,25 @@ class Agent(object):
             angle += 2 * math.pi
         elif angle > math.pi:
             angle -= 2 * math.pi
-        return angle
+        return angle 
 
-    # goal_angle is the angle we need to rotate the tank to point towards the goal
-    def avoid_obstacles(self, bot, goal_angle):
-        '''Returns the angle the tank should use to avoid obstacles, calculated as the sum of the effects of a repulsive and tangential field eminating from every obstacle on the given angle.'''
-        sum_angles = goal_angle
-        
-        # avoid enemies
-        enemy_influence_radius = 100 # do not consider enemies outside the radius
-        for enemy in self.enemies:
-            dist = math.sqrt((enemy.x - bot.x)**2 + (enemy.y - bot.y)**2)
-            if dist < enemy_influence_radius:
-                enemy_angle = math.atan2(enemy.y - bot.y, enemy.x - bot.x)
-                if enemy_angle < 0:
-                    enemy_angle += 2 * math.pi
-                sum_angles += enemy_angle + math.pi # oppositeangle
-                
+    # Calculate what would be the center of each obstacle and store those as tuples in obstacles list
+    def create_obstacles(self, obstacles):       
+        for obstacle in obstacles:
+            center_x = 0
+            center_y = 0
+            i = 0
+
+            for corner in obstacle:
+                x, y = corner
+                center_x += x
+                center_y += y  
+                i += 1
+            center_x /= i
+            center_y /= i
             
-        # avoid rocks
-        #obstacle_influence_radius = 20 # do not consider obstacles outside the radius
-        #for obstacle in obstacles:
-        #if sum_angles == goal_angle:
-        #    return normalize_angle(goal_angle)
-        
-        #return normalize_angle(sum_angles / self.enemies.len + 1)
-        return self.normalize_angle(sum_angles)    
+            center = center_x, center_y
+            self.obstacles.append(center)  
 
 def main():
     # Process CLI arguments.
