@@ -116,20 +116,20 @@ class PFieldPlotter(BZRC):
         tank.color = 'enemy'
         #tank.status = line[3]
         tank.flag = '-'
-        tank.x = 100
-        tank.y = 100
+        tank.x = 300
+        tank.y = 300
         #tank.angle = float(line[7])
         self.enemies.append(tank)
         
         tank2 = Answer()
         tank2.color = 'enemy'
         tank2.flag = '-'
-        tank2.x = 50 
-        tank2.y = 50
+        tank2.x = -300 
+        tank2.y = -300
         self.enemies.append(tank2)
         
         #return self.enemies
-        return [] # TODO change this, just debugging obstacles
+        return self.enemies # TODO change this, just debugging obstacles
         
     def get_flags(self):
         '''This will place a goal that should show attractive potential fields.'''
@@ -138,20 +138,37 @@ class PFieldPlotter(BZRC):
         flag = Answer()
         flag.color = 'blue'
         flag.poss_color = 'none'
-        flag.x = 400
+        flag.x = 0
         flag.y = -400
-        flags.append(flag)   
+        flags.append(flag)
+        
+        flag = Answer()
+        flag.color = 'green'
+        flag.poss_color = 'none'
+        flag.x = -400
+        flag.y = -0
+        flags.append(flag)
+        
+        flag = Answer()
+        flag.color = 'purple'
+        flag.poss_color = 'none'
+        flag.x = 400
+        flag.y = 0
+        flags.append(flag)
         
         return flags  
         
     def get_obstacles(self):
-        self.obstacles = [((0, 0), (-200, 0), (-200,-50), (0,-50), (0, -250), (50, -250), (50, -50), (250, -50), (250, 0), (50, 0), (50, 200), (0, 200)), ((150,150),(350,350),(300,222))]
+        #self.obstacles = [[(150.0, 150.0), (150.0, 90.0), (90.0, 90.0), (90.0, 150.0)], [(150.0, 210.0), (150.0, 150.0), (90.0, 150.0), (90.0, 210.0)], [(210.0, 150.0), (210.0, 90.0), (150.0, 90.0), (150.0, 150.0)], [(150.0, -90.0), (150.0, -150.0), (90.0, -150.0), (90.0, -90.0)], [(210.0, -90.0), (210.0, -150.0), (150.0, -150.0), (150.0, -90.0)], [(150.0, -150.0), (150.0, -210.0), (90.0, -210.0), (90.0, -150.0)], [(-90.0, -90.0), (-90.0, -150.0), (-150.0, -150.0), (-150.0, -90.0)], [(-90.0, -150.0), (-90.0, -210.0), (-150.0, -210.0), (-150.0, -150.0)], [(-150.0, -90.0), (-150.0, -150.0), (-210.0, -150.0), (-210.0, -90.0)], [(-90.0, 150.0), (-90.0, 90.0), (-150.0, 90.0), (-150.0, 150.0)], [(-90.0, 210.0), (-90.0, 150.0), (-150.0, 150.0), (-150.0, 210.0)], [(-150.0, 150.0), (-150.0, 90.0), (-210.0, 90.0), (-210.0, 150.0)], [(10.0, 60.0), (10.0, -60.0), (-10.0, -60.0), (-10.0, 60.0)]]
+        self.obstacles = [[(-100, 0), (0, 100.0), (100, 0), (0,-100)]]
         return self.obstacles
             
     ########################################################################
     # Helper Functions
 
     def gpi_point(self, x, y, vec_x, vec_y):
+        if(x == vec_x and y == vec_y):
+            return 0, 0, 0, 0
         '''Create the centered gpi data point (4-tuple) for a position and
         vector.  The vectors are expected to be less than 1 in magnitude,
         and larger values will be scaled down.'''

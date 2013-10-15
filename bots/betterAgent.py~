@@ -45,21 +45,21 @@ class Agent(object):
         # avoid enemies within this radius
         self.enemy_influence_radius = 30
         self.obstacle_influence_radius = 150
-        self.obstacle_influence_distance = 60
+        self.obstacle_influence_distance = 30
         
         # Constants        
         self.attractive_constant = 5
 
-        self.enemy_repulsive_constant = 10
-        self.enemy_tangential_constant = 0
+        self.enemy_repulsive_constant = 5
+        self.enemy_tangential_constant = 10
 
-        self.obstacle_repulsive_constant = 80
-        self.obstacle_tangential_constant = 10
+        self.obstacle_repulsive_constant = 200
+        self.obstacle_tangential_constant = 50
 
         self.obstacles = []
         #self.create_obstacles(self.bzrc.get_obstacles()) # Trevor's original code
         self.obstacles = self.bzrc.get_obstacles()
-        print(str(self.obstacles))# TODO remove DEBUG
+        #print(str(self.obstacles))# TODO remove DEBUG
 
         # set initial positions of all of the tanks on our team
 	for tank in self.mytanks:
@@ -183,10 +183,12 @@ class Agent(object):
                     near_pt_x, near_pt_y = self.get_nearest_point_on_line(p2[0],p2[1],p1[0],p1[1],bot)
                 distance_to_line = math.sqrt((near_pt_x - bot.x)**2 + (near_pt_y - bot.y)**2)
                 if distance_to_line <= self.obstacle_influence_distance:
-                    print("bot at (" + str(bot.x) + ", " + str(bot.y) + ") is " + str(distance_to_line) + " from the line (" + str(p1) + ", " + str(p2) + ") at the point (" + str(near_pt_x) + ", " + str(near_pt_y) + ")") # TODO remove DEBUG
+                    #print("bot at (" + str(bot.x) + ", " + str(bot.y) + ") is " + str(distance_to_line) + " from the line (" + str(p1) + ", " + str(p2) + ") at the point (" + str(near_pt_x) + ", " + str(near_pt_y) + ")") # TODO remove DEBUG
                     angle = math.atan2(near_pt_y - bot.y, near_pt_x - bot.x)
                     dx += -1 * self.obstacle_repulsive_constant * (self.obstacle_influence_distance - distance_to_line) * math.cos(angle)
                     dy += -1 * self.obstacle_repulsive_constant * (self.obstacle_influence_distance - distance_to_line) * math.sin(angle)
+                    dx += -1 * self.obstacle_tangential_constant * (self.obstacle_influence_distance - distance_to_line) * math.cos(angle + 90)
+                    dy += -1 * self.obstacle_tangential_constant * (self.obstacle_influence_distance - distance_to_line) * math.sin(angle + 90)
                 #else:
                     #print("too far from line")
         return dx, dy
@@ -261,8 +263,8 @@ class Agent(object):
             if flag.poss_color != 'none':
                 continue
             # TODO temporary
-            if flag.color != 'blue':
-                continue
+            #if flag.color != 'blue':
+            #    continue
             dist = math.sqrt((flag.x - bot.x)**2 + (flag.y - bot.y)**2)
             if not best or dist < best[0]:
                 best = [dist, flag]
@@ -300,7 +302,7 @@ class Agent(object):
     def move_to_position(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y, target_x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
-        command = Command(bot.index, .5, 2 * relative_angle, False)
+        command = Command(bot.index, 1, relative_angle, False)
         self.commands.append(command)
 
     def normalize_angle(self, angle):
