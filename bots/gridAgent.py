@@ -1,5 +1,11 @@
 #!/usr/bin/python -tt
 
+
+#for debug:
+#import pdb; pdb.set_trace()
+
+
+
 from bzrc import BZRC, Command, Answer
 import sys, math, time, random
 
@@ -35,6 +41,7 @@ class Agent(object):
         self.desired_angle = {}
         self.past_angle_error = {}
         self.moving = {}
+        self.consec_not_moving = {}
 
         # Determine the position of the center of our base (Where to return the flag)
         bases = self.bzrc.get_bases()
@@ -47,13 +54,20 @@ class Agent(object):
         # Constants        
         self.attractive_constant = 5
 
+        #find center point of all tanks
+        avg_x = sum(tank.x for tank in self.mytanks) / len(self.mytanks)
+        avg_y = sum(tank.y for tank in self.mytanks) / len(self.mytanks)
+
         # set initial positions of all of the tanks on our team
-	for tank in self.mytanks:
-            self.past_position[tank.index] = tank.x, tank.y
-            self.past_angle_error[tank.index] = 0
-            angle_increment = (2 * math.pi) / len(self.mytanks)
-            self.desired_angle[tank.index] = angle_increment * tank.index
-            self.moving[tank.index] = False
+        for tank in self.mytanks:
+                self.past_position[tank.index] = tank.x, tank.y
+                self.past_angle_error[tank.index] = 0
+                angle_increment = (2 * math.pi) / len(self.mytanks)
+                #self.desired_angle[tank.index] = angle_increment * tank.index
+                #self.desired_angle[tank.index] = 0 # DEBUG
+                self.desired_angle[tank.index] = math.atan2(tank.y - avg_y, tank.x - avg_x)
+                self.moving[tank.index] = False
+                self.consec_not_moving[tank.index] = 0
             
 
     def update(self):
@@ -72,15 +86,33 @@ class Agent(object):
         for tank in self.mytanks:
             tank_angle = self.normalize_angle(tank.angle)
             past_x, past_y = self.past_position[tank.index]
-            if tank_angle - self.desired_angle[tank.index] < ((2 * math.pi) / 360):
+            if (tank_angle - self.desired_angle[tank.index])**2 < 0.001:
+                #print("Tank " + str(tank.index) + " reached desired angle. current angle = " + str(tank_angle) + " desired angle = " + str(self.desired_angle[tank.index])) # DEBUG
+                #self.commands.append(Command(tank.index, 0, 0, False)) # DEBUG
+                
                 if self.moving[tank.index] == False:
                     # reached desired angle. start moving
                     self.moving[tank.index] = True
+                    self.consec_not_moving[tank.index] = 0
                     self.commands.append(Command(tank.index, 1, 0, False))
-                elif tank.x - past_x == 0 or tank.y - past_y == 0: # already moving, check if we're stuck
+                elif tank.x - past_x == 0 or tank.y - past_y == 0:
+                    self.consec_not_moving[tank.index] += 1
+                    print("tank " + str(tank.index) + " consec_not_moving = " + str(self.consec_not_moving[tank.index]))
+                    if self.consec_not_moving[tank.index] > 10:
+                        print("staaaaapppp!! tank " + str(tank.index) + " reached a consec_not_moving of " + str(self.consec_not_moving[tank.index]))
+                        self.commands.append(Command(tank.index,0,0,False))
+                else:
+                    self.consec_not_moving[tank.index] = 0
+                #elif (tank.x - past_x == 0 and tank.y - past_y != 0) or (tank.x - past_x != 0 and tank.y - past_y == 0): # already moving, check if we're stuck
+                    
                     # we're stuck. stop the tank and change the angle
-                    self.moving[tank.index] = False
-                    self.reflect_angle(tank)     
+                 #   if tank.index == 0:
+                 #       print('tank.x ' + str(tank.x) + ' past.x ' + str(past_x))# DEBUG
+                 #       print('tank.y ' + str(tank.y) + ' past.y ' + str(past_y))# DEBUG
+                 #   self.moving[tank.index] = False
+                 #   self.desired_angle[tank.index] = self.normalize_angle(self.desired_angle[tank.index] + math.pi / 2)
+                    #self.commands.append(Command(tank.index,0,0,False))
+                    #self.reflect_angle(tank)  
             else:
                 self.rotate_to_angle(tank, self.desired_angle[tank.index])
         
