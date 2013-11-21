@@ -8,6 +8,8 @@
 
 from bzrc import BZRC, Command, Answer
 import sys, math, time, random
+from grid_filter_gl import *
+from numpy import zeros
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -42,6 +44,11 @@ class Agent(object):
         self.past_angle_error = {}
         self.moving = {}
         self.consec_not_moving = {}
+        
+        # Visualization
+        self.window_size = 800
+        init_window(self.window_size,self.window_size);
+        self.grid = zeros((self.window_size,self.window_size))
 
         # Determine the position of the center of our base (Where to return the flag)
         bases = self.bzrc.get_bases()
@@ -63,8 +70,13 @@ class Agent(object):
             self.past_position[tank.index] = tank.x, tank.y
             self.past_angle_error[tank.index] = 0
             angle_increment = (2 * math.pi) / len(self.mytanks)
+<<<<<<< HEAD
+            #self.desired_angle[tank.index] = math.pi # DEBUG
+            self.desired_angle[tank.index] = math.atan2(tank.y - avg_y, tank.x - avg_x)
+=======
             self.desired_angle[tank.index] = math.pi # DEBUG
             #self.desired_angle[tank.index] = math.atan2(tank.y - avg_y, tank.x - avg_x)
+>>>>>>> 7e06c942e20a93389c98c44fe45fa2650b6746b7
             self.moving[tank.index] = False
             self.consec_not_moving[tank.index] = 0
 
@@ -81,16 +93,38 @@ class Agent(object):
         angle_increment = (2 * math.pi) / len(self.mytanks)
         
         for tank in self.mytanks:
+            self.occgrid_debug(tank)
             tank_angle = self.normalize_angle(tank.angle)
             past_x, past_y = self.past_position[tank.index]
+<<<<<<< HEAD
+=======
             x_change = tank.x - past_x
             y_change = tank.y - past_y
 
+>>>>>>> 7e06c942e20a93389c98c44fe45fa2650b6746b7
             if (tank_angle - self.desired_angle[tank.index])**2 < 0.001: # reached desired angle. start moving                 
                 if self.moving[tank.index] == False:
                     self.moving[tank.index] = True
                     self.consec_not_moving[tank.index] = 0
                     self.commands.append(Command(tank.index, 1, 0, False))
+<<<<<<< HEAD
+
+                # if not moving in x or y direction AND are not meaning to drive directly horizontal or vertical
+                # This needs to be debugged a bit more - tanks get stuck when going exactly horizontal or vertical because of this
+                elif (tank.x - past_x == 0) or (tank.y - past_y == 0):
+                #elif (tank.x - past_x == 0 and not self.going_vertical(tank_angle)) or (tank.y - past_y == 0 and not self.going_horizontal(tank_angle)): NEED TO FIX THIS BEFORE USING
+                    # Maybe do something like, IF going horizontal and x hasn't changed, then you need to turn
+                    # If you are going vertical and y hasnt' changed, you need to turn etc.
+                    self.consec_not_moving[tank.index] += 1
+                    #print("tank " + str(tank.index) + " consec_not_moving = " + str(self.consec_not_moving[tank.index]))
+                    if self.consec_not_moving[tank.index] > 10:
+                        #print("staaaaapppp!! tank " + str(tank.index) + " reached a consec_not_moving of " + str(self.consec_not_moving[tank.index]))
+                        self.commands.append(Command(tank.index, 0, 0, False))
+                        self.moving[tank.index] = False
+                        self.reflect_angle(tank)
+                        # DEBUG - Always Rotate 90*
+                        #self.desired_angle[tank.index] = self.normalize_angle(self.desired_angle[tank.index] + math.pi / 2)
+=======
                 
                 elif ((x_change == 0 and (not self.going_vertical(tank_angle))) or (y_change == 0 and (not self.going_horizontal(tank_angle))) or
                         (x_change == 0 and self.going_horizontal(tank_angle)) or (y_change == 0 and self.going_vertical(tank_angle))): # Going horizontal or vertical
@@ -99,6 +133,7 @@ class Agent(object):
                         self.commands.append(Command(tank.index, 0, 0, False))
                         self.moving[tank.index] = False
                         self.reflect_angle(tank)
+>>>>>>> 7e06c942e20a93389c98c44fe45fa2650b6746b7
                 else:
                     self.consec_not_moving[tank.index] = 0
             else: # Haven't reached our desired angle yet - Keep rotating
@@ -107,6 +142,43 @@ class Agent(object):
             self.past_position[tank.index] = tank.x, tank.y
         
         results = self.bzrc.do_commands(self.commands)
+<<<<<<< HEAD
+        update_grid(self.grid)
+        draw_grid()
+    
+    def occgrid_debug(self, tank):
+        top_left, tank_grid = self.bzrc.get_occgrid(tank.index)
+        top_left_x = top_left[0] + self.window_size / 2
+        top_left_y = top_left[1] + self.window_size / 2
+        
+        for i in range(0,len(tank_grid) - 1):
+            for j in range(0,len(tank_grid[0]) - 1): # assuming all rows are the same size
+                window_y = top_left_y - i - 1
+                window_x = top_left_x + j - 1
+                if window_y >= self.window_size:
+                    window_y = self.window_size - 1
+                elif window_y < 0:
+                    window_y = 0
+                if window_x >= self.window_size - 1:
+                    window_x = self.window_size - 1
+                elif window_x < 0:
+                    window_x = 0
+                self.grid[window_y][window_x] = tank_grid[i][j]
+                #self.grid[top_left_y - i][top_left_x + j] = 1 # DEBUG sensor gives all 1s
+    
+    # Going generally straight left or right
+    def going_horizontal(self, angle):
+        tolerance = .2
+        if(angle < 0):
+            return ((math.pi + angle) <= tolerance) or ((0 - angle) <= tolerance)
+        else:
+            return ((math.pi - angle) <= tolerance) or (angle <= tolerance)
+        
+    # Going generally straight up or down
+    def going_vertical(self, angle):
+        tolerance = .2
+        return ((math.pi - angle) <= tolerance) or ((math.pi - angle) >= (-1 * tolerance))
+=======
 
     # Going generally straight left or right
     def going_horizontal(self, angle):
@@ -125,6 +197,7 @@ class Agent(object):
             return ((positive_angle - math.pi/2) <= tolerance)
         else:
             return ((math.pi/2 - positive_angle) <= tolerance)
+>>>>>>> 7e06c942e20a93389c98c44fe45fa2650b6746b7
         
     def angle_between(self, given, smaller_angle, larger_angle):
         angle = self.normalize_angle(given)
@@ -141,9 +214,18 @@ class Agent(object):
         tank_angle = self.normalize_angle(tank.angle)
         past_x, past_y = self.past_position[tank.index]
 
+<<<<<<< HEAD
+        #if tank.index == 0:
+        #    print("Tank " + str(tank.index) + ": angle: " + str(tank_angle)) #DEBUG
+
+        # Rotate by an angle between 30* and 90*
+        angle_to_rotate_by = random.uniform(math.pi/6, math.pi/2)
+        #angle_to_rotate_by = math.pi/4
+=======
         # Rotate by an angle between 45* and 90*
         angle_to_rotate_by = random.uniform(math.pi/4, math.pi/2)
         #angle_to_rotate_by = math.pi/2
+>>>>>>> 7e06c942e20a93389c98c44fe45fa2650b6746b7
 
         if tank.x - past_x == 0:
             # Up and Right or Down and Left (Turn Left)
@@ -169,6 +251,11 @@ class Agent(object):
         command = Command(bot.index, 0, kp * relative_angle + kd * angle_change, False)
         self.commands.append(command)
         self.past_angle_error[bot.index] = relative_angle
+<<<<<<< HEAD
+        #if bot.index == 0:
+        #    print("bot 0 command angular velocity: " + str(kp * relative_angle + kd * angle_change)) # DEBUG
+=======
+>>>>>>> 7e06c942e20a93389c98c44fe45fa2650b6746b7
 
     def move_to_position(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y, target_x)
@@ -205,9 +292,19 @@ def main():
 
     # Run the agent
     try:
+        #init_window(500,500)
+        #debug_dot = 0# DEBUG
+        #grid = zeros((500,500))
         while True:
             time_diff = time.time() - prev_time
+            #debug_dot += 1
+            #if debug_dot >= 500:
+            #    debug_dot = 0
+            #grid[debug_dot,debug_dot] = 1
+            #update_grid(grid)
+            #draw_grid()
             agent.tick(time_diff)
+            
     except KeyboardInterrupt:
         print "Exiting due to keyboard interrupt."
         bzrc.close()

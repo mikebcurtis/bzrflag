@@ -8,6 +8,8 @@
 
 from bzrc import BZRC, Command, Answer
 import sys, math, time, random
+from grid_filter_gl import *
+from numpy import zeros
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -50,6 +52,11 @@ class Agent(object):
                 self.base = Answer()
                 self.base.x = (base.corner1_x+base.corner3_x)/2
                 self.base.y = (base.corner1_y+base.corner3_y)/2
+                
+        # Visualization
+        self.window_size = 800
+        init_window(self.window_size,self.window_size);
+        self.grid = zeros((self.window_size,self.window_size))
 
         # Constants        
         self.attractive_constant = 5
@@ -63,8 +70,8 @@ class Agent(object):
             self.past_position[tank.index] = tank.x, tank.y
             self.past_angle_error[tank.index] = 0
             angle_increment = (2 * math.pi) / len(self.mytanks)
-            self.desired_angle[tank.index] = math.pi # DEBUG
-            #self.desired_angle[tank.index] = math.atan2(tank.y - avg_y, tank.x - avg_x)
+            #self.desired_angle[tank.index] = math.pi # DEBUG
+            self.desired_angle[tank.index] = math.atan2(tank.y - avg_y, tank.x - avg_x)
             self.moving[tank.index] = False
             self.consec_not_moving[tank.index] = 0
 
@@ -81,6 +88,7 @@ class Agent(object):
         angle_increment = (2 * math.pi) / len(self.mytanks)
         
         for tank in self.mytanks:
+            self.occgrid_debug(tank)        
             tank_angle = self.normalize_angle(tank.angle)
             past_x, past_y = self.past_position[tank.index]
             x_change = tank.x - past_x
@@ -107,6 +115,28 @@ class Agent(object):
             self.past_position[tank.index] = tank.x, tank.y
         
         results = self.bzrc.do_commands(self.commands)
+        update_grid(self.grid)
+        draw_grid()
+        
+    def occgrid_debug(self, tank):
+        top_left, tank_grid = self.bzrc.get_occgrid(tank.index)
+        top_left_x = top_left[0] + self.window_size / 2
+        top_left_y = top_left[1] + self.window_size / 2
+        
+        for i in range(0,len(tank_grid) - 1):
+            for j in range(0,len(tank_grid[0]) - 1): # assuming all rows are the same size
+                window_y = top_left_y - i - 1
+                window_x = top_left_x + j - 1
+                if window_y >= self.window_size:
+                    window_y = self.window_size - 1
+                elif window_y < 0:
+                    window_y = 0
+                if window_x >= self.window_size - 1:
+                    window_x = self.window_size - 1
+                elif window_x < 0:
+                    window_x = 0
+                self.grid[window_y][window_x] = tank_grid[i][j]
+                #self.grid[top_left_y - i][top_left_x + j] = 1 # DEBUG sensor gives all 1s                
 
     # Going generally straight left or right
     def going_horizontal(self, angle):
