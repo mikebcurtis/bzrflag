@@ -3,7 +3,7 @@
 #for debug:
 #import pdb; pdb.set_trace()
 from bzrc import BZRC, Command, Answer
-import sys, math, time, random
+import sys, math, time, random, thread
 from grid_filter_gl import *
 from numpy import zeros, ones
 
@@ -133,21 +133,37 @@ class Agent(object):
         results = self.bzrc.do_commands(self.commands)
 
     def updateGrid(self):
-        #for tank in self.mytanks:
-#            self.updateWithTank(tank)
-        self.updateWithTank(self.mytanks[0])
+        for tank in self.mytanks:
+            self.updateWithTank(tank)
+        #self.updateWithTank(self.mytanks[0])
         update_grid(self.p)
         draw_grid()
 
+    # THIS IS HOW THE STUPID GRID IS
+    # BOTTOM L                TOP L
+    #     Y       
+    #X [[ 0.  0.  0. ...,  0.  0.  0.]
+    #   [ 0.  0.  0. ...,  0.  0.  0.]
+    #   [ 0.  0.  0. ...,  0.  0.  0.]
+    #   ..., 
+    #   [ 1.  1.  1. ...,  1.  1.  1.]
+    #   [ 1.  1.  1. ...,  1.  1.  1.]
+    #   [ 1.  1.  1. ...,  1.  1.  1.]]
+    # BOTTOMR R               TOP R
+
     def updateWithTank(self, tank):
         bottom_left, tank_grid = self.bzrc.get_occgrid(tank.index)
+        # WE ASSUME THAT WE ARE GETTING [X,Y] - WHO KNOWS IF IT REALLY IS
         bottom_left_x = bottom_left[0] + self.WorldDim / 2
         bottom_left_y = bottom_left[1] + self.WorldDim / 2
         
+        #print(str(tank_grid))
+
+        # i's are X (row) j's are Y (col)
         for i in range(0,len(tank_grid) - 1):
             for j in range(0,len(tank_grid[0]) - 1): # assuming all rows are the same size
-                window_y = bottom_left_y + i
-                window_x = bottom_left_x + j
+                window_x = bottom_left_x + i
+                window_y = bottom_left_y + j
                 self.p[self.WorldDim - 1][self.WorldDim - 1] = 0
                 if window_y >= self.WorldDim:
                     window_y = self.WorldDim - 1
@@ -159,7 +175,6 @@ class Agent(object):
                     window_x = 0
                 if self.p[window_y][window_x] != 1:
                     self.p[window_y][window_x] = tank_grid[i][j] #REPLACE THIS WITH GRID FILTER
-                #self.grid[bottom_left_y - i][bottom_left_x + j] = 1 # DEBUG sensor gives all 1s  
 
     # Going generally straight left or right
     def going_horizontal(self, angle):
@@ -198,7 +213,10 @@ class Agent(object):
         angle_to_rotate_by = random.uniform(math.pi/4, math.pi/2)
         #angle_to_rotate_by = math.pi/2
 
-        if tank.x - past_x == 0:
+        if tank.x -past_x == 0 and tank.y - past_y == 0:
+            self.desired_angle[tank.index] = self.normalize_angle(tank_angle + math.pi)
+
+        elif tank.x - past_x == 0:
             # Up and Right or Down and Left (Turn Left)
             if self.angle_between(tank_angle, 0, math.pi/2) or self.angle_between(tank_angle, -math.pi, -math.pi/2):
                 self.desired_angle[tank.index] = self.normalize_angle(tank_angle + angle_to_rotate_by)
