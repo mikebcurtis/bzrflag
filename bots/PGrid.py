@@ -1,0 +1,84 @@
+from bzrc import BZRC, Command, Answer
+import sys, math, time, random
+from grid_filter_gl import *
+from numpy import zeros, ones
+
+class PGrid(object):
+	
+	def __init__(self, bzrc):
+		self.WorldDim = 800
+		init_window(self.WorldDim, self.WorldDim);
+		self.bzrc = bzrc
+
+		########################  Likelihoods ####################         
+		# For this problem, there are two possible states for each cell: occupied and unoccupied.
+		# For each cell, there are three possible observations: hit, no-hit, and no observation.
+		# Since we won't update probabilities in the absence of an observation, we will only use
+		# the hit or miss observations.
+		#
+		# We can give names for each likelihood as follows:
+		# p(O=hit|S=occupied) = "TrueHit"
+		# p(O=hit|S=unoccupied) = "FalseAlarm"
+		# p(O=no-hit|S=occupied) = "MissedDetection" = 1-TrueHit
+		# p(O=no-hit|S=unoccupied) = "TrueMiss" = 1-FalseAlarm
+
+		self.TrueHit = 0.98  # The probability that an occupied cell is detected as a hit by the observer.
+		self.FalseAlarm = 0.6 # The probability that an unoccupied cell is detected as a hit.
+
+		########################### CREATE PROBABILITY GRID ###########################
+		# Create a data structure that holds the probability that the point
+		# specified by the index contains an obstacle.  Initialize it to a
+		# probability of 0.25 per each obstacle.
+		self.p = .75 * ones((self.WorldDim, self.WorldDim))
+
+	def update(self, tanks):
+		for tank in tanks:
+			self.updateWithTank(tank)
+		update_grid(self.p)
+		draw_grid()
+
+	def updateWithTank(self, tank):
+		top_left, tank_grid = self.bzrc.get_occgrid(tank.index)
+		top_left_x = top_left[0] + self.WorldDim / 2
+		top_left_y = top_left[1] + self.WorldDim / 2
+        
+		for i in range(0,len(tank_grid) - 1):
+			for j in range(0,len(tank_grid[0]) - 1): # assuming all rows are the same size
+				window_y = top_left_y - i - 1
+				window_x = top_left_x + j - 1
+				if window_y >= self.WorldDim:
+					window_y = self.WorldDim - 1
+				elif window_y < 0:
+					window_y = 0
+				if window_x >= self.WorldDim - 1:
+					window_x = self.WorldDim - 1
+				elif window_x < 0:
+					window_x = 0
+				self.p[window_y][window_x] = tank_grid[i][j]
+                #self.grid[top_left_y - i][top_left_x + j] = 1 # DEBUG sensor gives all 1s                
+             
+            #########################################
+            # UPDATE PROBABILITIES USING BAYES RULE #
+            # This is the grid filter.  For each    #
+            # cell in the grid, update the probabi- #
+            # lity of it be it be occupied using    #
+            # Bayes rule given the observation.     #
+            #########################################
+
+	    # New, improved, and correct version
+	    if (Observation(i,j) == 1)  # If we observe a hit
+	        Bel_Occ = TrueHit * p(SensorX,SensorY)  # Recall that p(SensorX,SensorY) is the probability that a cell is occupied
+            Bel_Unocc = FalseAlarm * (1-p(SensorX,SensorY))  # So 1-p(SensorX,SensorY) is the probability that a cell is unoccupied
+	        # Normalize
+            p(SensorX,SensorY) = Bel_Occ / (Bel_Occ + Bel_Unocc)
+        else  # If do not observe a hit 
+ 	        Bel_Occ = (1-TrueHit) * p(SensorX,SensorY)  # Recall that p(SensorX,SensorY) is the probability that a cell is occupied
+							     # Recall that (1-TrueHit) is the MissedDetection likelihood
+            Bel_Unocc = (1-FalseAlarm) * (1-p(SensorX,SensorY))  # Recall 1-p(SensorX,SensorY) is the probability that a cell is unoccupied
+							     # Recall that (1-FalseAlarm) is the TrueMiss likelihood
+	        # Normalize
+            p(SensorX,SensorY) = Bel_Occ / (Bel_Occ + Bel_Unocc)
+               
+        end
+            set(GridHandle(SensorX,SensorY),'color',[1-p(SensorX,SensorY),1-p(SensorX,SensorY),1-p(SensorX,SensorY)])
+

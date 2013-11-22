@@ -1,15 +1,11 @@
 #!/usr/bin/python -tt
 
-
 #for debug:
 #import pdb; pdb.set_trace()
-
-
-
 from bzrc import BZRC, Command, Answer
 import sys, math, time, random
 from grid_filter_gl import *
-from numpy import zeros
+from numpy import zeros, ones
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -38,12 +34,41 @@ class Agent(object):
         self.constants = self.bzrc.get_constants()
         self.commands = []
 
+#        for thing in self.constants:
+#            print (str(thing) + "=" + str(self.constants[thing]))
+
         self.update()
         self.past_position = {}
         self.desired_angle = {}
         self.past_angle_error = {}
         self.moving = {}
         self.consec_not_moving = {}
+
+        self.WorldDim = int(self.constants['worldsize'])
+        init_window(self.WorldDim, self.WorldDim);
+
+        ########################  Likelihoods ####################         
+        # For this problem, there are two possible states for each cell: occupied and unoccupied.
+        # For each cell, there are three possible observations: hit, no-hit, and no observation.
+        # Since we won't update probabilities in the absence of an observation, we will only use
+        # the hit or miss observations.
+        #
+        # We can give names for each likelihood as follows:
+        # p(O=hit|S=occupied) = "TrueHit"
+        # p(O=hit|S=unoccupied) = "FalseAlarm"
+        # p(O=no-hit|S=occupied) = "MissedDetection" = 1-TrueHit
+        # p(O=no-hit|S=unoccupied) = "TrueMiss" = 1-FalseAlarm
+
+        # The probability that an occupied cell is detected as a hit by the observer.
+        self.TrueHit = int(self.constants['truepositive']) 
+        # The probability that an unoccupied cell is detected as a hit.
+        self.FalseAlarm = 1 - int(self.constants['truenegative'])
+
+        ########################### CREATE PROBABILITY GRID ###########################
+        # Create a data structure that holds the probability that the point
+        # specified by the index contains an obstacle.  Initialize it to a
+        # probability of 0.25 per each obstacle.
+        self.p = .75 * ones((self.WorldDim, self.WorldDim))
 
         # Determine the position of the center of our base (Where to return the flag)
         bases = self.bzrc.get_bases()
@@ -52,14 +77,6 @@ class Agent(object):
                 self.base = Answer()
                 self.base.x = (base.corner1_x+base.corner3_x)/2
                 self.base.y = (base.corner1_y+base.corner3_y)/2
-                
-        # Visualization
-        self.window_size = 800
-        init_window(self.window_size,self.window_size);
-        self.grid = zeros((self.window_size,self.window_size))
-
-        # Constants        
-        self.attractive_constant = 5
 
         #find center point of all tanks
         avg_x = sum(tank.x for tank in self.mytanks) / len(self.mytanks)
@@ -69,7 +86,6 @@ class Agent(object):
         for tank in self.mytanks:
             self.past_position[tank.index] = tank.x, tank.y
             self.past_angle_error[tank.index] = 0
-            angle_increment = (2 * math.pi) / len(self.mytanks)
             #self.desired_angle[tank.index] = math.pi # DEBUG
             self.desired_angle[tank.index] = math.atan2(tank.y - avg_y, tank.x - avg_x)
             self.moving[tank.index] = False
@@ -84,26 +100,26 @@ class Agent(object):
     def tick(self, time_diff):
         self.update()
         self.commands = []
-        
-        angle_increment = (2 * math.pi) / len(self.mytanks)
-        
+        self.updateGrid()
+        self.moveTanks()
+
+    def moveTanks(self):
         for tank in self.mytanks:
-            self.occgrid_debug(tank)        
             tank_angle = self.normalize_angle(tank.angle)
             past_x, past_y = self.past_position[tank.index]
             x_change = tank.x - past_x
             y_change = tank.y - past_y
 
-            if (tank_angle - self.desired_angle[tank.index])**2 < 0.001: # reached desired angle. start moving                 
+            # reached desired angle. start moving
+            if (tank_angle - self.desired_angle[tank.index])**2 < 0.001:
                 if self.moving[tank.index] == False:
                     self.moving[tank.index] = True
                     self.consec_not_moving[tank.index] = 0
                     self.commands.append(Command(tank.index, 1, 0, False))
-                
                 elif ((x_change == 0 and (not self.going_vertical(tank_angle))) or (y_change == 0 and (not self.going_horizontal(tank_angle))) or
                         (x_change == 0 and self.going_horizontal(tank_angle)) or (y_change == 0 and self.going_vertical(tank_angle))): # Going horizontal or vertical
                     self.consec_not_moving[tank.index] += 1
-                    if self.consec_not_moving[tank.index] > 20:
+                    if self.consec_not_moving[tank.index] > 10:
                         self.commands.append(Command(tank.index, 0, 0, False))
                         self.moving[tank.index] = False
                         self.reflect_angle(tank)
@@ -115,28 +131,35 @@ class Agent(object):
             self.past_position[tank.index] = tank.x, tank.y
         
         results = self.bzrc.do_commands(self.commands)
-        update_grid(self.grid)
+
+    def updateGrid(self):
+        #for tank in self.mytanks:
+#            self.updateWithTank(tank)
+        self.updateWithTank(self.mytanks[0])
+        update_grid(self.p)
         draw_grid()
-        
-    def occgrid_debug(self, tank):
-        top_left, tank_grid = self.bzrc.get_occgrid(tank.index)
-        top_left_x = top_left[0] + self.window_size / 2
-        top_left_y = top_left[1] + self.window_size / 2
+
+    def updateWithTank(self, tank):
+        bottom_left, tank_grid = self.bzrc.get_occgrid(tank.index)
+        bottom_left_x = bottom_left[0] + self.WorldDim / 2
+        bottom_left_y = bottom_left[1] + self.WorldDim / 2
         
         for i in range(0,len(tank_grid) - 1):
             for j in range(0,len(tank_grid[0]) - 1): # assuming all rows are the same size
-                window_y = top_left_y - i - 1
-                window_x = top_left_x + j - 1
-                if window_y >= self.window_size:
-                    window_y = self.window_size - 1
+                window_y = bottom_left_y + i
+                window_x = bottom_left_x + j
+                self.p[self.WorldDim - 1][self.WorldDim - 1] = 0
+                if window_y >= self.WorldDim:
+                    window_y = self.WorldDim - 1
                 elif window_y < 0:
                     window_y = 0
-                if window_x >= self.window_size - 1:
-                    window_x = self.window_size - 1
+                if window_x >= self.WorldDim - 1:
+                    window_x = self.WorldDim - 1
                 elif window_x < 0:
                     window_x = 0
-                self.grid[window_y][window_x] = tank_grid[i][j]
-                #self.grid[top_left_y - i][top_left_x + j] = 1 # DEBUG sensor gives all 1s                
+                if self.p[window_y][window_x] != 1:
+                    self.p[window_y][window_x] = tank_grid[i][j] #REPLACE THIS WITH GRID FILTER
+                #self.grid[bottom_left_y - i][bottom_left_x + j] = 1 # DEBUG sensor gives all 1s  
 
     # Going generally straight left or right
     def going_horizontal(self, angle):
@@ -214,6 +237,35 @@ class Agent(object):
         elif angle > math.pi:
             angle -= 2 * math.pi
         return angle 
+
+    #########################################
+    # UPDATE PROBABILITIES USING BAYES RULE #
+    # This is the grid filter.  For each    #
+    # cell in the grid, update the probabi- #
+    # lity of it be it be occupied using    #
+    # Bayes rule given the observation.     #
+    #########################################
+    def updateProbability(i, j, tank_grid):
+         # If we observe a hit
+        if tank_grid[i][j] == 1:
+            # Recall that p(SensorX,SensorY) is the probability that a cell is occupied
+            Bel_Occ = self.TrueHit * self.p[i][j]
+            # So 1-p(SensorX,SensorY) is the probability that a cell is unoccupied
+            Bel_Unocc = self.FalseAlarm * (1 - self.p[i][j])
+            # Normalize
+            self.p[i][j] = Bel_Occ / (Bel_Occ + Bel_Unocc)
+        else:  # If do not observe a hit 
+            # Recall that p(SensorX,SensorY) is the probability that a cell is occupied
+            Bel_Occ = (1 - self.TrueHit) * self.p[i][j]  
+		    # Recall that (1-TrueHit) is the MissedDetection likelihood
+            # Recall 1-p(SensorX,SensorY) is the probability that a cell is unoccupied
+            Bel_Unocc = (1 - self.FalseAlarm) * (1 - self.p[i][j])  
+		    # Recall that (1-FalseAlarm) is the TrueMiss likelihood
+	        # Normalize
+            self.p[i][j] = Bel_Occ / (Bel_Occ + Bel_Unocc)
+
+#        end
+#            set(GridHandle(SensorX,SensorY),'color',[1-p(SensorX,SensorY),1-p(SensorX,SensorY),1-p(SensorX,SensorY)])
 
 def main():
     # Process CLI arguments.
