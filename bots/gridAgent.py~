@@ -240,7 +240,7 @@ class Agent(object):
 	        # Normalize
             return Bel_Occ / (Bel_Occ + Bel_Unocc)
 
-    '''# Going generally straight left or right'''
+    # Going generally straight left or right
     def going_horizontal(self, angle):
         diff = 0
         if(angle > 0):
